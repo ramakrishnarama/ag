@@ -8,14 +8,15 @@ import Button from "@/components/ui/button/Button";
 import { TableColumn } from "react-data-table-component";
 
 /* -----------------------------------------
-   BASE TYPE (ALL ROWS MUST EXTEND)
+   UNIVERSAL SAFE ROW TYPE (must include id)
 ------------------------------------------ */
-interface BaseRow {
+type AnyRow = {
   id: number;
-}
+  [key: string]: string | number | undefined;
+};
 
 /* -----------------------------------------
-   TYPES FOR ALL TABLE ROWS (EXTENDING BaseRow)
+   PAGE TYPES
 ------------------------------------------ */
 
 type TableType =
@@ -25,72 +26,6 @@ type TableType =
   | "orders-executed"
   | "collection"
   | "follow-ups";
-
-interface SalespersonRow extends BaseRow {
-  name: string;
-  totalVisits: number;
-  ordersTaken: number;
-  ordersExecuted: number;
-  markets: number;
-  collection: number;
-  followups: number;
-}
-
-interface VisitedRow extends BaseRow {
-  date: string;
-  salesperson: string;
-  clientName: string;
-  duration: string;
-  market: string;
-  notes: string;
-}
-
-interface OrdersTakenRow extends BaseRow {
-  date: string;
-  salesperson: string;
-  client: string;
-  amount: number;
-  status: string;
-}
-
-interface OrdersExecutedRow extends BaseRow {
-  date: string;
-  salesperson: string;
-  client: string;
-  amount: number;
-  execStatus: string;
-}
-
-interface CollectionRow extends BaseRow {
-  date: string;
-  salesperson: string;
-  client: string;
-  amount: number;
-  mode: string;
-  reference: string;
-}
-
-interface FollowupRow extends BaseRow {
-  date: string;
-  salesperson: string;
-  client: string;
-  status: string;
-  notes: string;
-  nextFollowup: string;
-}
-
-/* -----------------------------------------
-   MAP TABLE TYPE → EXACT ROW TYPE
------------------------------------------- */
-
-type RowTypeMap = {
-  salespersons: SalespersonRow;
-  visited: VisitedRow;
-  "orders-taken": OrdersTakenRow;
-  "orders-executed": OrdersExecutedRow;
-  collection: CollectionRow;
-  "follow-ups": FollowupRow;
-};
 
 /* -----------------------------------------
    PAGE COMPONENT
@@ -105,13 +40,13 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
   const salesPeople = SAMPLE_NAMES.map((n, i) => ({ id: i + 1, name: n }));
 
   /* -----------------------------------------
-     GENERATE ROWS (STRICTLY TYPED)
+     ROW GENERATOR (returns AnyRow[])
   ------------------------------------------ */
 
-  const rows = useMemo(() => {
+  const rows = useMemo<AnyRow[]>(() => {
     switch (type) {
       case "salespersons":
-        return salesPeople.map<SalespersonRow>((s) => ({
+        return salesPeople.map<AnyRow>((s) => ({
           id: s.id,
           name: s.name,
           totalVisits: Math.floor(Math.random() * 60),
@@ -123,7 +58,7 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
         }));
 
       case "visited": {
-        const list: VisitedRow[] = [];
+        const list: AnyRow[] = [];
         for (let i = 1; i <= 120; i++) {
           const sp = salesPeople[(i - 1) % salesPeople.length];
           list.push({
@@ -133,7 +68,6 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
             clientName: `Client ${i}`,
             duration: `${Math.floor(Math.random() * 4)}h ${Math.floor(Math.random() * 60)}m`,
             market: `Market ${Math.floor(Math.random() * 6) + 1}`,
-            notes: "",
           });
         }
         return filterId
@@ -142,7 +76,7 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
       }
 
       case "orders-taken": {
-        const list: OrdersTakenRow[] = [];
+        const list: AnyRow[] = [];
         for (let i = 1; i <= 120; i++) {
           const sp = salesPeople[(i - 1) % salesPeople.length];
           list.push({
@@ -160,7 +94,7 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
       }
 
       case "orders-executed": {
-        const list: OrdersExecutedRow[] = [];
+        const list: AnyRow[] = [];
         for (let i = 1; i <= 80; i++) {
           const sp = salesPeople[(i - 1) % salesPeople.length];
           list.push({
@@ -178,7 +112,7 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
       }
 
       case "collection": {
-        const list: CollectionRow[] = [];
+        const list: AnyRow[] = [];
         for (let i = 1; i <= 90; i++) {
           const sp = salesPeople[(i - 1) % salesPeople.length];
           list.push({
@@ -197,7 +131,7 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
       }
 
       case "follow-ups": {
-        const list: FollowupRow[] = [];
+        const list: AnyRow[] = [];
         for (let i = 1; i <= 80; i++) {
           const sp = salesPeople[(i - 1) % salesPeople.length];
           list.push({
@@ -206,7 +140,6 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
             salesperson: sp.name,
             client: `Client ${i}`,
             status: Math.random() > 0.5 ? "Open" : "Closed",
-            notes: "",
             nextFollowup: new Date(Date.now() + Math.floor(Math.random() * 10) * 86400000)
               .toISOString()
               .slice(0, 10),
@@ -216,80 +149,85 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
           ? list.filter((r) => r.salesperson === salesPeople.find((x) => x.id === filterId)?.name)
           : list;
       }
+
+      default:
+        return [];
     }
   }, [type, filterId, salesPeople]);
 
   /* -----------------------------------------
-     COLUMNS (TYPESAFE)
+     COLUMNS (TABLECOLUMN<AnyRow>)
   ------------------------------------------ */
 
-  const columns = useMemo(() => {
+  const columns = useMemo<TableColumn<AnyRow>[]>(() => {
     switch (type) {
       case "salespersons":
         return [
-          { name: "ID", selector: (r) => r.id, sortable: true },
-          { name: "Name", selector: (r) => r.name, sortable: true },
-          { name: "Total Visits", selector: (r) => r.totalVisits, sortable: true },
-          { name: "Orders Taken", selector: (r) => r.ordersTaken, sortable: true },
-          { name: "Orders Executed", selector: (r) => r.ordersExecuted, sortable: true },
-          { name: "Markets", selector: (r) => r.markets, sortable: true },
+          { name: "ID", selector: (r) => r.id },
+          { name: "Name", selector: (r) => r.name as string },
+          { name: "Total Visits", selector: (r) => r.totalVisits as number },
+          { name: "Orders Taken", selector: (r) => r.ordersTaken as number },
+          { name: "Orders Executed", selector: (r) => r.ordersExecuted as number },
+          { name: "Markets", selector: (r) => r.markets as number },
           {
             name: "Collection",
-            selector: (r) => `₹${Math.round(r.collection / 1000)}k`,
-            sortable: true,
+            selector: (r) => `₹${Math.round(Number(r.collection) / 1000)}k`,
           },
-        ] as TableColumn<SalespersonRow>[];
+        ];
 
       case "visited":
         return [
-          { name: "Visit ID", selector: (r) => r.id, sortable: true },
-          { name: "Date", selector: (r) => r.date },
-          { name: "Salesperson", selector: (r) => r.salesperson },
-          { name: "Client Name", selector: (r) => r.clientName },
-          { name: "Duration", selector: (r) => r.duration },
-          { name: "Market", selector: (r) => r.market },
-        ] as TableColumn<VisitedRow>[];
+          { name: "Visit ID", selector: (r) => r.id },
+          { name: "Date", selector: (r) => r.date as string },
+          { name: "Salesperson", selector: (r) => r.salesperson as string },
+          { name: "Client Name", selector: (r) => r.clientName as string },
+          { name: "Duration", selector: (r) => r.duration as string },
+          { name: "Market", selector: (r) => r.market as string },
+        ];
 
       case "orders-taken":
         return [
-          { name: "Order ID", selector: (r) => r.id, sortable: true },
-          { name: "Date", selector: (r) => r.date },
-          { name: "Salesperson", selector: (r) => r.salesperson },
-          { name: "Client", selector: (r) => r.client },
-          { name: "Amount", selector: (r) => `₹${Math.round(r.amount / 1000)}k`, sortable: true },
-          { name: "Status", selector: (r) => r.status },
-        ] as TableColumn<OrdersTakenRow>[];
+          { name: "Order ID", selector: (r) => r.id },
+          { name: "Date", selector: (r) => r.date as string },
+          { name: "Salesperson", selector: (r) => r.salesperson as string },
+          { name: "Client", selector: (r) => r.client as string },
+          { name: "Amount", selector: (r) => `₹${Math.round(Number(r.amount) / 1000)}k` },
+          { name: "Status", selector: (r) => r.status as string },
+        ];
 
       case "orders-executed":
         return [
           { name: "Exec ID", selector: (r) => r.id },
-          { name: "Date", selector: (r) => r.date },
-          { name: "Salesperson", selector: (r) => r.salesperson },
-          { name: "Client", selector: (r) => r.client },
-          { name: "Amount", selector: (r) => `₹${Math.round(r.amount / 1000)}k` },
-          { name: "Status", selector: (r) => r.execStatus },
-        ] as TableColumn<OrdersExecutedRow>[];
+          { name: "Date", selector: (r) => r.date as string },
+          { name: "Salesperson", selector: (r) => r.salesperson as string },
+          { name: "Client", selector: (r) => r.client as string },
+          { name: "Amount", selector: (r) => `₹${Math.round(Number(r.amount) / 1000)}k` },
+          { name: "Status", selector: (r) => r.execStatus as string },
+        ];
 
       case "collection":
         return [
           { name: "Receipt ID", selector: (r) => r.id },
-          { name: "Date", selector: (r) => r.date },
-          { name: "Salesperson", selector: (r) => r.salesperson },
-          { name: "Client", selector: (r) => r.client },
-          { name: "Amount", selector: (r) => `₹${Math.round(r.amount / 1000)}k` },
-          { name: "Mode", selector: (r) => r.mode },
-          { name: "Reference", selector: (r) => r.reference },
-        ] as TableColumn<CollectionRow>[];
+          { name: "Date", selector: (r) => r.date as string },
+          { name: "Salesperson", selector: (r) => r.salesperson as string },
+          { name: "Client", selector: (r) => r.client as string },
+          { name: "Amount", selector: (r) => `₹${Math.round(Number(r.amount) / 1000)}k` },
+          { name: "Mode", selector: (r) => r.mode as string },
+          { name: "Reference", selector: (r) => r.reference as string },
+        ];
 
       case "follow-ups":
         return [
           { name: "Follow-up ID", selector: (r) => r.id },
-          { name: "Date", selector: (r) => r.date },
-          { name: "Salesperson", selector: (r) => r.salesperson },
-          { name: "Client", selector: (r) => r.client },
-          { name: "Status", selector: (r) => r.status },
-          { name: "Next Follow-up", selector: (r) => r.nextFollowup },
-        ] as TableColumn<FollowupRow>[];
+          { name: "Date", selector: (r) => r.date as string },
+          { name: "Salesperson", selector: (r) => r.salesperson as string },
+          { name: "Client", selector: (r) => r.client as string },
+          { name: "Status", selector: (r) => r.status as string },
+          { name: "Next Follow-up", selector: (r) => r.nextFollowup as string },
+        ];
+
+      default:
+        return [];
     }
   }, [type]);
 
@@ -308,11 +246,6 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
     }[type] ?? "Data";
 
   /* -----------------------------------------
-     CURRENT ROW TYPE EXTRACTION
-  ------------------------------------------ */
-  type CurrentRow = RowTypeMap[typeof type];
-
-  /* -----------------------------------------
      RENDER
   ------------------------------------------ */
 
@@ -327,11 +260,7 @@ export default function DataTablePage({ params }: { params: { type: TableType } 
 
       <Card>
         <CardContent>
-            <MyDataTable<CurrentRow>
-            title={pretty}
-            columns={columns}
-            data={rows as CurrentRow[]}
-            />
+          <MyDataTable<AnyRow> title={pretty} columns={columns} data={rows} />
         </CardContent>
       </Card>
     </div>
