@@ -24,7 +24,7 @@ export default function SignInForm() {
       const expiry = Date.now() + 10 * 60 * 60 * 1000; // 10 hours in ms
       localStorage.setItem("authToken", JSON.stringify({ token, expiry }));
   
-      router.push("/dashboard");
+      router.push("/dg");
     } else {
       setError("Invalid username or password");
     }
